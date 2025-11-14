@@ -179,11 +179,6 @@ function getRandomPosition(width, height) {
 }
 
 function createPopup(imgSrc) {
-    // Non creare popup su mobile
-    if (isMobile()) {
-        return;
-    }
-    
     showOverlay();
     const newPopup = document.createElement('div');
     newPopup.className = 'popup-container';
@@ -671,90 +666,6 @@ function isMobile() {
     return window.innerWidth <= 768;
 }
 
-// Variabili per il carosello mobile
-let mobilePopupWrapper = null;
-let mobilePopupCarousel = null;
-
-// Funzione per creare il carosello mobile
-function createMobilePopupCarousel(images) {
-    // Rimuovi carosello esistente se presente
-    if (mobilePopupWrapper) {
-        closeMobilePopupCarousel();
-    }
-    
-    // Abbassa l'opacità dei box
-    document.querySelector('.projects-grid').classList.add('carousel-open');
-    
-    // Crea il wrapper
-    mobilePopupWrapper = document.createElement('div');
-    mobilePopupWrapper.className = 'mobile-popup-wrapper active';
-    
-    // Crea l'overlay oscurato
-    const overlay = document.createElement('div');
-    overlay.className = 'mobile-popup-overlay';
-    overlay.addEventListener('click', (e) => {
-        // Chiudi solo se si clicca sull'overlay, non sul carosello
-        if (e.target === overlay) {
-            closeMobilePopupCarousel();
-        }
-    });
-    mobilePopupWrapper.appendChild(overlay);
-    
-    // Crea il carosello
-    mobilePopupCarousel = document.createElement('div');
-    mobilePopupCarousel.className = 'mobile-popup-carousel';
-    
-    // Previeni la chiusura quando si tocca il carosello
-    mobilePopupCarousel.addEventListener('touchstart', (e) => {
-        e.stopPropagation();
-    }, { passive: true });
-    mobilePopupCarousel.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
-    
-    // Aggiungi le immagini al carosello
-    images.forEach((imgSrc, index) => {
-        const item = document.createElement('div');
-        item.className = 'mobile-popup-item';
-        
-        const img = document.createElement('img');
-        img.src = imgSrc;
-        img.alt = `Immagine ${index + 1}`;
-        
-        item.appendChild(img);
-        mobilePopupCarousel.appendChild(item);
-    });
-    
-    mobilePopupWrapper.appendChild(mobilePopupCarousel);
-    document.body.appendChild(mobilePopupWrapper);
-    
-    // Previeni lo scroll del body quando il carosello è aperto
-    document.body.style.overflow = 'hidden';
-    
-    // Nascondi grispex e mostra street_b/w
-    nameElement.style.display = 'none';
-    streetNameElement.classList.add('visible');
-}
-
-// Funzione per chiudere il carosello mobile
-function closeMobilePopupCarousel() {
-    if (mobilePopupWrapper) {
-        mobilePopupWrapper.remove();
-        mobilePopupWrapper = null;
-        mobilePopupCarousel = null;
-        
-        // Ripristina l'opacità dei box
-        document.querySelector('.projects-grid').classList.remove('carousel-open');
-        
-        // Ripristina lo scroll del body
-        document.body.style.overflow = '';
-        
-        // Nascondi street_b/w e mostra grispex
-        streetNameElement.classList.remove('visible');
-        nameElement.style.display = 'block';
-    }
-}
-
 // Event Listeners
 document.querySelectorAll('.project').forEach((project, index) => {
     project.addEventListener('click', (e) => {
@@ -763,28 +674,23 @@ document.querySelectorAll('.project').forEach((project, index) => {
         // Ottieni tutte le immagini per questo box (dalla cartella se esiste, altrimenti solo l'immagine del box)
         const images = getImagesForBox(img.src);
         
-        // Su mobile usa il carosello, su desktop usa i popup
-        if (isMobile()) {
-            createMobilePopupCarousel(images);
+        // Crea i popup solo se non esistono già
+        if (popupStack.length === 0) {
+            images.forEach(imgSrc => {
+                createPopup(imgSrc);
+            });
+            isMultiPopupMode = true;
+
+            // Nascondi "grispex" e mostra "street_b/w"
+            console.log("Nascondo grispex");
+            nameElement.style.display = 'none'; // Nascondi grispex
+            streetNameElement.classList.add('visible'); // Mostra street_b/w
         } else {
-            // Crea i popup solo se non esistono già
-            if (popupStack.length === 0) {
+            // Usa createPopup invece di openPopup per uniformare il comportamento
+            if (popupStack.indexOf(popup) === -1) {
                 images.forEach(imgSrc => {
                     createPopup(imgSrc);
                 });
-                isMultiPopupMode = true;
-
-                // Nascondi "grispex" e mostra "street_b/w"
-                console.log("Nascondo grispex");
-                nameElement.style.display = 'none'; // Nascondi grispex
-                streetNameElement.classList.add('visible'); // Mostra street_b/w
-            } else {
-                // Usa createPopup invece di openPopup per uniformare il comportamento
-                if (popupStack.indexOf(popup) === -1) {
-                    images.forEach(imgSrc => {
-                        createPopup(imgSrc);
-                    });
-                }
             }
         }
         e.stopPropagation();
@@ -800,11 +706,7 @@ document.addEventListener('mousedown', (e) => {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        if (isMobile() && mobilePopupWrapper) {
-            closeMobilePopupCarousel();
-        } else {
-            closeAllPopups();
-        }
+        closeAllPopups();
     }
 });
 
