@@ -179,6 +179,11 @@ function getRandomPosition(width, height) {
 }
 
 function createPopup(imgSrc) {
+    // Non creare popup su mobile
+    if (isMobile()) {
+        return;
+    }
+    
     showOverlay();
     const newPopup = document.createElement('div');
     newPopup.className = 'popup-container';
@@ -677,6 +682,9 @@ function createMobilePopupCarousel(images) {
         closeMobilePopupCarousel();
     }
     
+    // Abbassa l'opacità dei box
+    document.querySelector('.projects-grid').classList.add('carousel-open');
+    
     // Crea il wrapper
     mobilePopupWrapper = document.createElement('div');
     mobilePopupWrapper.className = 'mobile-popup-wrapper active';
@@ -734,6 +742,9 @@ function closeMobilePopupCarousel() {
         mobilePopupWrapper.remove();
         mobilePopupWrapper = null;
         mobilePopupCarousel = null;
+        
+        // Ripristina l'opacità dei box
+        document.querySelector('.projects-grid').classList.remove('carousel-open');
         
         // Ripristina lo scroll del body
         document.body.style.overflow = '';
