@@ -156,23 +156,31 @@ body {
     pointer-events: none;
 }
 
-.project:hover img {
-    opacity: 1;
-    filter: invert(1);
+/* Hover solo su desktop */
+@media (hover: hover) and (min-width: 769px) {
+    .project:hover img {
+        opacity: 1;
+        filter: invert(1);
+    }
 }
 
 @media (max-width: 768px) {
     body {
         overflow-y: auto;
         overflow-x: hidden;
+        position: relative;
     }
     
     .container {
-        padding: 1.2rem;
+        padding: 0.2rem 0.2rem 1.2rem 0.2rem;
         align-items: flex-start;
         justify-content: center;
         overflow-y: auto;
         overflow-x: hidden;
+        position: relative;
+        width: 100%;
+        height: auto;
+        min-height: 100vh;
     }
     
     .projects-grid {
@@ -185,10 +193,10 @@ body {
     }
     
     .project {
-        width: 90%;
+        width: 100%;
         height: auto;
         aspect-ratio: 1;
-        margin: 0 auto;
+        margin: 0;
         min-width: unset;
         min-height: unset;
     }
@@ -196,10 +204,74 @@ body {
     .name {
         font-size: 0.9rem;
         padding: 0.6rem 1rem;
+        position: fixed !important;
+        bottom: 1rem !important;
+        top: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        z-index: 100 !important;
+        margin: 0 !important;
+    }
+    
+    .street-name {
+        position: fixed !important;
+        bottom: 1rem !important;
+        top: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        z-index: 100 !important;
+        margin: 0 !important;
+    }
+    
+    /* Hover invert solo al click su mobile */
+    .project:active img {
+        opacity: 1;
+        filter: invert(1);
+    }
+    
+    /* Carosello mobile */
+    .mobile-carousel {
         position: fixed;
-        bottom: 1rem;
-        top: auto;
-        transform: translateX(-50%);
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+    }
+    
+    .mobile-carousel-container {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s ease-out;
+        will-change: transform;
+        pointer-events: auto;
+    }
+    
+    .mobile-carousel-item {
+        min-width: 100%;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        box-sizing: border-box;
+        pointer-events: auto;
+    }
+    
+    .mobile-carousel-item img {
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+        object-fit: contain;
+        pointer-events: none;
     }
     
 }
