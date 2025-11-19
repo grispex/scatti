@@ -96,6 +96,16 @@ function initResize(e, handle, targetPopupContent) {
         bottom: rect.bottom
     };
     
+    // Ottieni l'aspect ratio corretto da questo popup specifico
+    const img = targetPopupContent.querySelector('.popup-image');
+    if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+        // Usa l'aspect ratio dell'immagine corrente
+        originalAspectRatio = img.naturalWidth / img.naturalHeight;
+    } else {
+        // Fallback: calcola dall'altezza e larghezza attuali
+        originalAspectRatio = rect.width / rect.height;
+    }
+    
     document.addEventListener('mousemove', handleResize);
     document.addEventListener('mouseup', stopResize);
     e.preventDefault();
@@ -108,51 +118,98 @@ function handleResize(e) {
         const moveX = e.clientX - initialPosition.x;
         const moveY = e.clientY - initialPosition.y;
         
-        const maxScreenWidth = window.innerWidth * 0.75;
-        const maxScreenHeight = window.innerHeight * 0.75;
-        const minScreenWidth = window.innerWidth * 0.25;
-        const minScreenHeight = window.innerHeight * 0.25;
+        // Limiti più flessibili: da 10% a 95% dello schermo
+        const maxScreenWidth = window.innerWidth * 0.95;
+        const maxScreenHeight = window.innerHeight * 0.95;
+        const minScreenWidth = window.innerWidth * 0.10;
+        const minScreenHeight = window.innerHeight * 0.10;
         
-        let newWidth, newHeight, newLeft, newTop;
+        // Determina la direzione del ridimensionamento
+        const isRight = currentResizeHandle.includes('right');
+        const isLeft = currentResizeHandle.includes('left');
+        const isTop = currentResizeHandle.includes('top');
+        const isBottom = currentResizeHandle.includes('bottom');
         
-        // Calcola le nuove dimensioni mantenendo l'aspect ratio
-        if (currentResizeHandle.includes('right')) {
-            newWidth = Math.max(minScreenWidth, Math.min(maxScreenWidth, initialSize.width + moveX));
-            newHeight = newWidth / originalAspectRatio;
-            newLeft = initialSize.left;
-        } else if (currentResizeHandle.includes('left')) {
-            newWidth = Math.max(minScreenWidth, Math.min(maxScreenWidth, initialSize.width - moveX));
-            newHeight = newWidth / originalAspectRatio;
-            newLeft = initialSize.right - newWidth;
+        // Calcola la scala basata sul movimento diagonale
+        // Questo rende il ridimensionamento più fluido e naturale
+        let scale = 1;
+        
+        if (isRight && isBottom) {
+            // Angolo bottom-right: movimento positivo = ingrandisce
+            const avgMove = (moveX + moveY) / 2;
+            const avgSize = (initialSize.width + initialSize.height) / 2;
+            scale = 1 + (avgMove / avgSize);
+        } else if (isRight && isTop) {
+            // Angolo top-right: movimento X positivo e Y negativo = ingrandisce
+            const avgMove = (moveX - moveY) / 2;
+            const avgSize = (initialSize.width + initialSize.height) / 2;
+            scale = 1 + (avgMove / avgSize);
+        } else if (isLeft && isBottom) {
+            // Angolo bottom-left: movimento X negativo e Y positivo = ingrandisce
+            const avgMove = (-moveX + moveY) / 2;
+            const avgSize = (initialSize.width + initialSize.height) / 2;
+            scale = 1 + (avgMove / avgSize);
+        } else if (isLeft && isTop) {
+            // Angolo top-left: movimento negativo = ingrandisce (perché si allontana dall'angolo)
+            const avgMove = (-moveX - moveY) / 2;
+            const avgSize = (initialSize.width + initialSize.height) / 2;
+            scale = 1 + (avgMove / avgSize);
         }
         
-        // Aggiusta l'altezza se supera i limiti dello schermo
-        if (newHeight > maxScreenHeight) {
+        // Assicurati che la scala sia sempre positiva e ragionevole
+        scale = Math.max(0.1, Math.min(10, scale));
+        
+        // Calcola le nuove dimensioni
+        let newWidth = initialSize.width * scale;
+        let newHeight = newWidth / originalAspectRatio;
+        
+        // Verifica i limiti e aggiusta se necessario, mantenendo l'aspect ratio
+        if (newWidth < minScreenWidth) {
+            newWidth = minScreenWidth;
+            newHeight = newWidth / originalAspectRatio;
+            // Se anche l'altezza risultante è fuori limite, usa l'altezza come riferimento
+            if (newHeight < minScreenHeight) {
+                newHeight = minScreenHeight;
+                newWidth = newHeight * originalAspectRatio;
+            }
+        } else if (newWidth > maxScreenWidth) {
+            newWidth = maxScreenWidth;
+            newHeight = newWidth / originalAspectRatio;
+            // Se anche l'altezza risultante è fuori limite, usa l'altezza come riferimento
+            if (newHeight > maxScreenHeight) {
+                newHeight = maxScreenHeight;
+                newWidth = newHeight * originalAspectRatio;
+            }
+        } else if (newHeight < minScreenHeight) {
+            newHeight = minScreenHeight;
+            newWidth = newHeight * originalAspectRatio;
+        } else if (newHeight > maxScreenHeight) {
             newHeight = maxScreenHeight;
             newWidth = newHeight * originalAspectRatio;
-            if (currentResizeHandle.includes('left')) {
-                newLeft = initialSize.right - newWidth;
-            }
         }
         
-        // Calcola la posizione verticale
-        if (currentResizeHandle.includes('top')) {
+        // Calcola la posizione in base all'angolo
+        let newLeft, newTop;
+        if (isLeft) {
+            newLeft = initialSize.right - newWidth;
+        } else {
+            newLeft = initialSize.left;
+        }
+        
+        if (isTop) {
             newTop = initialSize.bottom - newHeight;
         } else {
             newTop = initialSize.top;
         }
         
         // Applica le nuove dimensioni e posizione
-        if (newWidth >= minScreenWidth && newWidth <= maxScreenWidth &&
-            newHeight >= minScreenHeight && newHeight <= maxScreenHeight) {
-            const maxLeft = window.innerWidth - newWidth;
-            const maxTop = window.innerHeight - newHeight;
-            
-            currentPopupContent.style.width = `${newWidth}px`;
-            currentPopupContent.style.height = `${newHeight}px`;
-            currentPopupContent.style.left = `${Math.max(0, Math.min(maxLeft, newLeft))}px`;
-            currentPopupContent.style.top = `${Math.max(0, Math.min(maxTop, newTop))}px`;
-        }
+        const maxLeft = window.innerWidth - newWidth;
+        const maxTop = window.innerHeight - newHeight;
+        
+        currentPopupContent.style.width = `${newWidth}px`;
+        currentPopupContent.style.height = `${newHeight}px`;
+        currentPopupContent.style.left = `${Math.max(0, Math.min(maxLeft, newLeft))}px`;
+        currentPopupContent.style.top = `${Math.max(0, Math.min(maxTop, newTop))}px`;
     });
 }
 
@@ -178,7 +235,12 @@ function getRandomPosition(width, height) {
     };
 }
 
-function createPopup(imgSrc) {
+function createPopup(imgSrc, index = 0, totalImages = 1) {
+    // Non creare popup su mobile (usa il carosello)
+    if (isMobile()) {
+        return;
+    }
+    
     showOverlay();
     const newPopup = document.createElement('div');
     newPopup.className = 'popup-container';
@@ -214,8 +276,8 @@ function createPopup(imgSrc) {
     img.onload = () => {
         originalAspectRatio = img.naturalWidth / img.naturalHeight;
         
-        // Calcola una dimensione casuale tra 40% e 60% dello schermo
-        const randomPercentage = 40 + Math.random() * 20;
+        // Calcola una dimensione casuale tra 30% e 50% dello schermo (più piccola)
+        const randomPercentage = 30 + Math.random() * 20;
         const maxWidth = window.innerWidth * (randomPercentage / 100);
         const maxHeight = window.innerHeight * (randomPercentage / 100);
         
@@ -230,6 +292,7 @@ function createPopup(imgSrc) {
         content.style.width = `${width}px`;
         content.style.height = `${height}px`;
         
+        // Usa posizionamento random come prima
         const pos = getRandomPosition(width, height);
         content.style.left = `${pos.left}px`;
         content.style.top = `${pos.top}px`;
@@ -666,6 +729,192 @@ function isMobile() {
     return window.innerWidth <= 768;
 }
 
+// Variabili per il carosello mobile
+let mobileCarousel = null;
+let mobileCarouselContainer = null;
+let currentCarouselIndex = 0;
+let carouselImages = [];
+let touchStartX = 0;
+let touchEndX = 0;
+let isCarouselDragging = false;
+let carouselStartX = 0;
+let carouselCurrentX = 0;
+let hasCarouselMoved = false; // Flag per tracciare se c'è stato movimento durante swipe
+
+// Funzione per creare il carosello mobile
+function createMobileCarousel(images) {
+    // Rimuovi carosello esistente se presente
+    if (mobileCarousel) {
+        closeMobileCarousel();
+    }
+    
+    carouselImages = images;
+    currentCarouselIndex = 0;
+    
+    // Crea il container principale del carosello
+    mobileCarousel = document.createElement('div');
+    mobileCarousel.className = 'mobile-carousel';
+    
+    // Crea il container delle immagini
+    mobileCarouselContainer = document.createElement('div');
+    mobileCarouselContainer.className = 'mobile-carousel-container';
+    
+    // Crea gli item per ogni immagine
+    images.forEach((imgSrc, index) => {
+        const item = document.createElement('div');
+        item.className = 'mobile-carousel-item';
+        
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.alt = `Immagine ${index + 1}`;
+        
+        item.appendChild(img);
+        mobileCarouselContainer.appendChild(item);
+    });
+    
+    mobileCarousel.appendChild(mobileCarouselContainer);
+    document.body.appendChild(mobileCarousel);
+    
+    // Previeni lo scroll del body quando il carosello è aperto
+    document.body.style.overflow = 'hidden';
+    
+    // Nascondi grispex e mostra street_b/w
+    nameElement.style.display = 'none';
+    streetNameElement.classList.add('visible');
+    
+    // Aggiorna la posizione iniziale
+    updateCarouselPosition();
+    
+    // Aggiungi event listeners per swipe
+    setupCarouselSwipe();
+    
+    // Aggiungi listener diretto sul carosello per chiudere quando si clicca fuori dalle immagini
+    mobileCarousel.addEventListener('click', handleCarouselClick, true);
+    mobileCarousel.addEventListener('touchend', handleCarouselClick, true);
+}
+
+// Funzione per aggiornare la posizione del carosello
+function updateCarouselPosition() {
+    if (!mobileCarouselContainer) return;
+    
+    const translateX = -currentCarouselIndex * 100;
+    mobileCarouselContainer.style.transform = `translateX(${translateX}%)`;
+}
+
+// Funzione per gestire il click/touch sul carosello
+function handleCarouselClick(e) {
+    if (!mobileCarousel) return;
+    
+    // Se c'è stato movimento durante lo swipe, non chiudere
+    if (hasCarouselMoved) {
+        return;
+    }
+    
+    // Ottieni il target corretto
+    let target = e.target;
+    if (e.type === 'touchend' && e.changedTouches && e.changedTouches[0]) {
+        const touch = e.changedTouches[0];
+        target = document.elementFromPoint(touch.clientX, touch.clientY);
+    }
+    
+    if (!target) return;
+    
+    // Verifica se il click/touch è direttamente sull'immagine
+    const clickedOnImage = target.tagName === 'IMG' || 
+                           target.closest('.mobile-carousel-item img');
+    
+    // Se il click NON è sull'immagine, chiudi il carosello
+    // Questo include click sul carosello stesso, sul container, o sull'item ma fuori dall'immagine
+    if (!clickedOnImage) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMobileCarousel();
+    }
+}
+
+// Funzione per chiudere il carosello mobile
+function closeMobileCarousel() {
+    // Rimuovi gli event listeners
+    if (mobileCarousel) {
+        mobileCarousel.removeEventListener('click', handleCarouselClick, true);
+        mobileCarousel.removeEventListener('touchend', handleCarouselClick, true);
+    }
+    
+    if (mobileCarousel) {
+        mobileCarousel.remove();
+        mobileCarousel = null;
+        mobileCarouselContainer = null;
+    }
+    
+    // Ripristina lo scroll del body
+    document.body.style.overflow = '';
+    
+    // Nascondi street_b/w e mostra grispex
+    streetNameElement.classList.remove('visible');
+    nameElement.style.display = 'block';
+    
+    currentCarouselIndex = 0;
+    carouselImages = [];
+    hasCarouselMoved = false;
+}
+
+// Funzione per impostare lo swipe del carosello
+function setupCarouselSwipe() {
+    if (!mobileCarousel) return;
+    
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+    
+    mobileCarousel.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        isDragging = true;
+        hasCarouselMoved = false;
+        mobileCarouselContainer.style.transition = 'none';
+    }, { passive: true });
+    
+    mobileCarousel.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        currentX = e.touches[0].clientX;
+        const diff = currentX - startX;
+        
+        // Se c'è movimento significativo, segna che c'è stato uno swipe
+        if (Math.abs(diff) > 5) {
+            hasCarouselMoved = true;
+        }
+        
+        const translateX = -currentCarouselIndex * 100 + (diff / window.innerWidth) * 100;
+        mobileCarouselContainer.style.transform = `translateX(${translateX}%)`;
+    }, { passive: true });
+    
+    mobileCarousel.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        mobileCarouselContainer.style.transition = 'transform 0.3s ease-out';
+        
+        const diff = currentX - startX;
+        const threshold = window.innerWidth * 0.2; // 20% dello schermo
+        
+        if (Math.abs(diff) > threshold) {
+            if (diff > 0 && currentCarouselIndex > 0) {
+                // Swipe a destra - vai all'immagine precedente
+                currentCarouselIndex--;
+            } else if (diff < 0 && currentCarouselIndex < carouselImages.length - 1) {
+                // Swipe a sinistra - vai all'immagine successiva
+                currentCarouselIndex++;
+            }
+        }
+        
+        updateCarouselPosition();
+        
+        // Reset del flag dopo un breve delay per permettere alla funzione di chiusura di verificare
+        setTimeout(() => {
+            hasCarouselMoved = false;
+        }, 100);
+    }, { passive: true });
+    
+}
+
 // Event Listeners
 document.querySelectorAll('.project').forEach((project, index) => {
     project.addEventListener('click', (e) => {
@@ -674,23 +923,28 @@ document.querySelectorAll('.project').forEach((project, index) => {
         // Ottieni tutte le immagini per questo box (dalla cartella se esiste, altrimenti solo l'immagine del box)
         const images = getImagesForBox(img.src);
         
-        // Crea i popup solo se non esistono già
-        if (popupStack.length === 0) {
-            images.forEach(imgSrc => {
-                createPopup(imgSrc);
-            });
-            isMultiPopupMode = true;
-
-            // Nascondi "grispex" e mostra "street_b/w"
-            console.log("Nascondo grispex");
-            nameElement.style.display = 'none'; // Nascondi grispex
-            streetNameElement.classList.add('visible'); // Mostra street_b/w
+        // Su mobile usa il carosello, su desktop usa i popup
+        if (isMobile()) {
+            createMobileCarousel(images);
         } else {
-            // Usa createPopup invece di openPopup per uniformare il comportamento
-            if (popupStack.indexOf(popup) === -1) {
-                images.forEach(imgSrc => {
-                    createPopup(imgSrc);
+            // Crea i popup solo se non esistono già
+            if (popupStack.length === 0) {
+                images.forEach((imgSrc, idx) => {
+                    createPopup(imgSrc, idx, images.length);
                 });
+                isMultiPopupMode = true;
+
+                // Nascondi "grispex" e mostra "street_b/w"
+                console.log("Nascondo grispex");
+                nameElement.style.display = 'none'; // Nascondi grispex
+                streetNameElement.classList.add('visible'); // Mostra street_b/w
+            } else {
+                // Usa createPopup invece di openPopup per uniformare il comportamento
+                if (popupStack.indexOf(popup) === -1) {
+                    images.forEach((imgSrc, idx) => {
+                        createPopup(imgSrc, idx, images.length);
+                    });
+                }
             }
         }
         e.stopPropagation();
@@ -706,7 +960,11 @@ document.addEventListener('mousedown', (e) => {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        closeAllPopups();
+        if (isMobile() && mobileCarousel) {
+            closeMobileCarousel();
+        } else {
+            closeAllPopups();
+        }
     }
 });
 
