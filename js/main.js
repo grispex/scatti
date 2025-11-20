@@ -33,6 +33,9 @@ let currentPopupContent = null;
 let topZIndex = 1000;
 let popupStack = [];
 let isMultiPopupMode = false;
+let pendingPopups = []; // Array per tracciare i popup in attesa di ordinamento
+let totalImagesToLoad = 0; // Numero totale di immagini da caricare
+let loadedImagesCount = 0; // Contatore di immagini caricate
 
 // Configurazione griglia
 const config = {
@@ -73,6 +76,64 @@ function bringToFront(popup) {
             }
         });
     }
+}
+
+// Funzione per rimuovere un popup da tutti gli array
+function removePopupFromAll(popup) {
+    // Rimuovi da popupStack
+    const stackIndex = popupStack.indexOf(popup);
+    if (stackIndex !== -1) {
+        popupStack.splice(stackIndex, 1);
+    }
+    
+    // Rimuovi da pendingPopups
+    const pendingIndex = pendingPopups.findIndex(item => item.popup === popup);
+    if (pendingIndex !== -1) {
+        pendingPopups.splice(pendingIndex, 1);
+        loadedImagesCount--; // Decrementa il contatore se era in pending
+    }
+}
+
+// Funzione per ordinare i popup per dimensione e assegnare z-index
+function sortPopupsBySize() {
+    // Ordina i popup per area (larghezza * altezza) in ordine decrescente
+    // La più grande sarà prima nell'array, quindi avrà z-index più basso
+    pendingPopups.sort((a, b) => {
+        const contentA = a.popup.querySelector('.popup-content');
+        const contentB = b.popup.querySelector('.popup-content');
+        
+        if (!contentA || !contentB) return 0;
+        
+        const areaA = a.width * a.height;
+        const areaB = b.width * b.height;
+        
+        return areaB - areaA; // Ordine decrescente (più grande prima)
+    });
+    
+    // Assegna z-index: la più grande (prima nell'array) ha z-index più basso
+    const baseZIndex = 1000;
+    const increment = 10;
+    
+    pendingPopups.forEach((item, index) => {
+        const popup = item.popup;
+        const content = popup.querySelector('.popup-content');
+        
+        if (content) {
+            // La più grande (index 0) ha z-index baseZIndex
+            // La più piccola (ultima) ha z-index più alto
+            popup.style.zIndex = baseZIndex + (index * increment);
+            content.style.transform = 'scale(1)';
+            content.style.opacity = '1';
+        }
+        
+        // Aggiungi il popup allo stack finale
+        popupStack.push(popup);
+    });
+    
+    // Pulisci l'array dei popup in attesa
+    pendingPopups = [];
+    loadedImagesCount = 0;
+    totalImagesToLoad = 0;
 }
 
 // Gestione del ridimensionamento
@@ -222,17 +283,72 @@ function stopResize() {
 }
 
 // Gestione Popup
-function getRandomPosition(width, height) {
+// Array per tracciare le posizioni dei popup esistenti (solo desktop)
+let existingPopupPositions = [];
+
+function getRandomPosition(width, height, maxAttempts = 50) {
     const marginX = window.innerWidth * 0.1;
     const marginY = window.innerHeight * 0.1;
     
     const safeX = window.innerWidth - width - (marginX * 2);
     const safeY = window.innerHeight - height - (marginY * 2);
     
-    return {
-        left: Math.random() * safeX + marginX,
-        top: Math.random() * safeY + marginY
-    };
+    // Prova a trovare una posizione che non si sovrapponga più del 25%
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const left = Math.random() * safeX + marginX;
+        const top = Math.random() * safeY + marginY;
+        
+        // Verifica sovrapposizioni con popup esistenti
+        let hasOverlap = false;
+        for (const existing of existingPopupPositions) {
+            const overlap = calculateOverlap(
+                left, top, width, height,
+                existing.left, existing.top, existing.width, existing.height
+            );
+            
+            // Se la sovrapposizione è maggiore del 25%, prova un'altra posizione
+            if (overlap > 0.25) {
+                hasOverlap = true;
+                break;
+            }
+        }
+        
+        // Se non c'è sovrapposizione eccessiva, usa questa posizione
+        if (!hasOverlap) {
+            // Aggiungi questa posizione all'array
+            existingPopupPositions.push({ left, top, width, height });
+            return { left, top };
+        }
+    }
+    
+    // Se dopo tutti i tentativi non si trova una posizione, usa una randomica
+    const left = Math.random() * safeX + marginX;
+    const top = Math.random() * safeY + marginY;
+    existingPopupPositions.push({ left, top, width, height });
+    return { left, top };
+}
+
+// Funzione per calcolare la percentuale di sovrapposizione tra due rettangoli
+function calculateOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
+    // Calcola l'area di intersezione
+    const left = Math.max(x1, x2);
+    const right = Math.min(x1 + w1, x2 + w2);
+    const top = Math.max(y1, y2);
+    const bottom = Math.min(y1 + h1, y2 + h2);
+    
+    // Se non c'è intersezione, ritorna 0
+    if (left >= right || top >= bottom) {
+        return 0;
+    }
+    
+    // Calcola l'area di intersezione
+    const intersectionArea = (right - left) * (bottom - top);
+    
+    // Calcola l'area del primo rettangolo
+    const area1 = w1 * h1;
+    
+    // Ritorna la percentuale di sovrapposizione rispetto al primo rettangolo
+    return intersectionArea / area1;
 }
 
 function createPopup(imgSrc, index = 0, totalImages = 1) {
@@ -277,7 +393,7 @@ function createPopup(imgSrc, index = 0, totalImages = 1) {
         originalAspectRatio = img.naturalWidth / img.naturalHeight;
         
         // Calcola una dimensione casuale tra 30% e 50% dello schermo (più piccola)
-        const randomPercentage = 30 + Math.random() * 20;
+        const randomPercentage = 35 + Math.random() * 20;
         const maxWidth = window.innerWidth * (randomPercentage / 100);
         const maxHeight = window.innerHeight * (randomPercentage / 100);
         
@@ -297,9 +413,20 @@ function createPopup(imgSrc, index = 0, totalImages = 1) {
         content.style.left = `${pos.left}px`;
         content.style.top = `${pos.top}px`;
         
-        // Aggiungi il popup allo stack e imposta il z-index
-        popupStack.push(newPopup);
-        bringToFront(newPopup);
+        // Salva il popup con le sue dimensioni nell'array dei popup in attesa
+        pendingPopups.push({
+            popup: newPopup,
+            width: width,
+            height: height
+        });
+        
+        // Incrementa il contatore di immagini caricate
+        loadedImagesCount++;
+        
+        // Se tutte le immagini sono caricate, ordina i popup per dimensione
+        if (loadedImagesCount >= totalImagesToLoad) {
+            sortPopupsBySize();
+        }
     };
     
     content.appendChild(img);
@@ -341,11 +468,18 @@ function createPopup(imgSrc, index = 0, totalImages = 1) {
                         e.clientY < rect.top || e.clientY > rect.bottom;
         
         if (isOutside && !isClickInsideAnyPopup(e)) {
-            const index = popupStack.indexOf(newPopup);
-            if (index !== -1) {
-                popupStack.splice(index, 1);
-                newPopup.remove();
-                isMultiPopupMode = popupStack.length > 1;
+            removePopupFromAll(newPopup);
+            newPopup.remove();
+            isMultiPopupMode = popupStack.length > 1;
+            
+            // Se non ci sono più popup, nascondi street_b/w e mostra grispex
+            if (popupStack.length === 0 && pendingPopups.length === 0) {
+                streetNameElement.classList.remove('visible');
+                if (config.boxSize >= 280) {
+                    nameElement.style.display = 'block';
+                }
+                hideOverlay();
+                isMultiPopupMode = false;
             }
         }
     });
@@ -603,15 +737,12 @@ function openPopup(imgSrc, clickEvent) {
 }
 
 function closePopup() {
-    const index = popupStack.indexOf(popup);
-    if (index !== -1) {
-        popupStack.splice(index, 1);
-    }
+    removePopupFromAll(popup);
     popup.style.display = 'none';
     popupImage.src = '';
     
     // Nascondi "street_b/w"
-    if (popupStack.length === 0) {
+    if (popupStack.length === 0 && pendingPopups.length === 0) {
         console.log("Nascondo street_b/w");
         streetNameElement.classList.remove('visible'); // Nascondi street_b/w
         
@@ -767,6 +898,20 @@ function createMobileCarousel(images) {
         const img = document.createElement('img');
         img.src = imgSrc;
         img.alt = `Immagine ${index + 1}`;
+        
+        // Rileva se l'immagine è orizzontale e applica rotazione di -90 gradi
+        img.onload = function() {
+            // Controlla solo su mobile
+            if (isMobile()) {
+                const isLandscape = img.naturalWidth > img.naturalHeight;
+                if (isLandscape) {
+                    img.classList.add('mobile-rotate-landscape');
+                    // Salva le dimensioni originali per calcoli successivi
+                    img.dataset.originalWidth = img.naturalWidth;
+                    img.dataset.originalHeight = img.naturalHeight;
+                }
+            }
+        };
         
         item.appendChild(img);
         mobileCarouselContainer.appendChild(item);
@@ -929,6 +1074,13 @@ document.querySelectorAll('.project').forEach((project, index) => {
         } else {
             // Crea i popup solo se non esistono già
             if (popupStack.length === 0) {
+                // Reset delle posizioni esistenti quando si aprono nuovi popup
+                existingPopupPositions = [];
+                // Reset dei contatori per il nuovo set di immagini
+                pendingPopups = [];
+                loadedImagesCount = 0;
+                totalImagesToLoad = images.length;
+                
                 images.forEach((imgSrc, idx) => {
                     createPopup(imgSrc, idx, images.length);
                 });
@@ -941,6 +1093,11 @@ document.querySelectorAll('.project').forEach((project, index) => {
             } else {
                 // Usa createPopup invece di openPopup per uniformare il comportamento
                 if (popupStack.indexOf(popup) === -1) {
+                    // Reset dei contatori per il nuovo set di immagini
+                    pendingPopups = [];
+                    loadedImagesCount = 0;
+                    totalImagesToLoad = images.length;
+                    
                     images.forEach((imgSrc, idx) => {
                         createPopup(imgSrc, idx, images.length);
                     });
@@ -1016,6 +1173,46 @@ document.querySelectorAll('.project img').forEach(img => {
     img.decoding = 'async';
 });
 
+// Blocca la rotazione dello schermo su mobile
+function lockScreenOrientation() {
+    if (isMobile()) {
+        // Prova a usare la Screen Orientation API
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').catch(err => {
+                console.log('Screen orientation lock non supportato:', err);
+            });
+        }
+        // Fallback per iOS Safari
+        else if (screen.lockOrientation) {
+            screen.lockOrientation('portrait');
+        }
+        // Fallback per vecchi browser
+        else if (screen.mozLockOrientation) {
+            screen.mozLockOrientation('portrait');
+        }
+        else if (screen.msLockOrientation) {
+            screen.msLockOrientation('portrait');
+        }
+    }
+}
+
+// Blocca la rotazione quando la pagina viene caricata
+if (isMobile()) {
+    lockScreenOrientation();
+    
+    // Blocca anche quando l'orientamento cambia (per sicurezza)
+    window.addEventListener('orientationchange', () => {
+        setTimeout(lockScreenOrientation, 100);
+    });
+    
+    // Blocca anche quando la finestra viene ridimensionata
+    window.addEventListener('resize', () => {
+        if (isMobile()) {
+            setTimeout(lockScreenOrientation, 100);
+        }
+    });
+}
+
 // Inizializzazione
 updateGridProperties();
 
@@ -1050,10 +1247,25 @@ function hideOverlay() {
 
 // Chiudi tutti i popup
 function closeAllPopups() {
+    // Rimuovi tutti i popup dallo stack
     while (popupStack.length > 0) {
         const p = popupStack.pop();
         p.remove();
     }
+    
+    // Rimuovi anche tutti i popup in attesa
+    while (pendingPopups.length > 0) {
+        const item = pendingPopups.pop();
+        item.popup.remove();
+    }
+    
+    // Reset delle posizioni esistenti quando si chiudono tutti i popup
+    existingPopupPositions = [];
+    
+    // Reset dei contatori per i popup in attesa
+    pendingPopups = [];
+    loadedImagesCount = 0;
+    totalImagesToLoad = 0;
     
     // Nascondi street_b/w
     streetNameElement.classList.remove('visible');
