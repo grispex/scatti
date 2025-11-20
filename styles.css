@@ -261,17 +261,33 @@ body {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 2rem;
+        padding: 1vw;
         box-sizing: border-box;
         pointer-events: auto;
+        overflow: hidden;
     }
     
     .mobile-carousel-item img {
-        width: 100%;
-        height: auto;
-        max-height: 100%;
+        width: auto;
+        height: calc(100vw + 21vh);
+        max-width: 100vw;
         object-fit: contain;
         pointer-events: none;
+        margin: 0;
+    }
+    
+    /* Rotazione di -90 gradi per immagini orizzontali su mobile */
+    .mobile-carousel-item img.mobile-rotate-landscape {
+        transform: rotate(-90deg);
+        transform-origin: center center;
+        /* Dopo la rotazione di -90 gradi, l'immagine orizzontale diventa verticale */
+        /* Deve adattarsi all'altezza del viewport con margini di 1vw */
+        width: auto;
+        height: calc(100vh - 3vh);
+        max-width: calc(100vh - 2vw);
+        max-height: calc(100vw - 3vh);
+        object-fit: contain;
+        margin: 0;
     }
     
 }
