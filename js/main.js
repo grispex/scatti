@@ -922,6 +922,7 @@ function isMobile() {
 // Variabili per il carosello mobile
 let mobileCarousel = null;
 let mobileCarouselContainer = null;
+let mobileCarouselDots = null;
 let currentCarouselIndex = 0;
 let carouselImages = [];
 let touchStartX = 0;
@@ -977,6 +978,21 @@ function createMobileCarousel(images) {
     });
 
     mobileCarousel.appendChild(mobileCarouselContainer);
+
+    // Crea i pallini indicatori se ci sono più immagini
+    if (images.length > 1) {
+        mobileCarouselDots = document.createElement('div');
+        mobileCarouselDots.className = 'mobile-carousel-dots';
+
+        images.forEach((_, index) => {
+            const dot = document.createElement('div');
+            dot.className = `carousel-dot${index === 0 ? ' active' : ''}`;
+            mobileCarouselDots.appendChild(dot);
+        });
+
+        mobileCarousel.appendChild(mobileCarouselDots);
+    }
+
     document.body.appendChild(mobileCarousel);
 
     // Previeni lo scroll del body quando il carosello è aperto
@@ -1003,6 +1019,18 @@ function updateCarouselPosition() {
 
     const translateX = -currentCarouselIndex * 100;
     mobileCarouselContainer.style.transform = `translateX(${translateX}%)`;
+
+    // Aggiorna i pallini attivi
+    if (mobileCarouselDots) {
+        const dots = mobileCarouselDots.querySelectorAll('.carousel-dot');
+        dots.forEach((dot, index) => {
+            if (index === currentCarouselIndex) {
+                dot.classList.add('active');
+            } else {
+                dot.classList.remove('active');
+            }
+        });
+    }
 }
 
 // Funzione per gestire il click/touch sul carosello
@@ -1048,6 +1076,7 @@ function closeMobileCarousel() {
         mobileCarousel.remove();
         mobileCarousel = null;
         mobileCarouselContainer = null;
+        mobileCarouselDots = null;
     }
 
     // Ripristina lo scroll del body
