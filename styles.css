@@ -99,7 +99,8 @@ body {
     z-index: 9999;
     padding: 0.8rem 1.2rem;
     pointer-events: none;
-    transition: none;
+    /* Crucial: doesn't block mouse */
+    transition: opacity 0.3s ease;
     background: none;
     width: auto;
     height: auto;
@@ -107,11 +108,14 @@ body {
     cursor: default;
     text-decoration: none;
     color: white;
+    display: none;
+    /* Hidden by default on desktop */
 }
 
 .street-name.visible {
     opacity: 1;
-    pointer-events: all;
+    display: block;
+    pointer-events: auto;
 }
 
 .projects-grid {
@@ -207,6 +211,7 @@ body {
 
     .street-name {
         display: none !important;
+        /* Hide original on mobile */
     }
 
     /* Hover invert solo al click su mobile */
@@ -277,7 +282,8 @@ body {
     /* Pallini indicatori carosello mobile */
     .mobile-carousel-dots {
         position: fixed;
-        bottom: 1.5rem;
+        bottom: 1rem;
+        /* Spostato al posto di grispex */
         left: 50%;
         transform: translateX(-50%);
         display: flex;
