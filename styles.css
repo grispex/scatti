@@ -60,7 +60,7 @@ body {
 }
 
 .name:hover {
-    /* transform: translate(-50%, -50%) scale(1.3); */  
+    /* transform: translate(-50%, -50%) scale(1.3); */
     color: white;
     mix-blend-mode: normal;
 }
@@ -170,7 +170,7 @@ body {
         overflow-x: hidden;
         position: relative;
     }
-    
+
     .container {
         padding: 0.2rem 0.2rem 1.2rem 0.2rem;
         align-items: flex-start;
@@ -182,7 +182,7 @@ body {
         height: auto;
         min-height: 100vh;
     }
-    
+
     .projects-grid {
         display: flex;
         flex-direction: column;
@@ -191,7 +191,7 @@ body {
         padding: 0;
         transform: none !important;
     }
-    
+
     .project {
         width: 100%;
         height: auto;
@@ -200,37 +200,21 @@ body {
         min-width: unset;
         min-height: unset;
     }
-    
+
     .name {
-        font-size: 0.9rem;
-        padding: 0.6rem 1rem;
-        position: fixed !important;
-        bottom: 1rem !important;
-        top: auto !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translateX(-50%) !important;
-        z-index: 100 !important;
-        margin: 0 !important;
+        display: none !important;
     }
-    
+
     .street-name {
-        position: fixed !important;
-        bottom: 1rem !important;
-        top: auto !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translateX(-50%) !important;
-        z-index: 100 !important;
-        margin: 0 !important;
+        display: none !important;
     }
-    
+
     /* Hover invert solo al click su mobile */
     .project:active img {
         opacity: 1;
         filter: invert(1);
     }
-    
+
     /* Carosello mobile */
     .mobile-carousel {
         position: fixed;
@@ -244,7 +228,7 @@ body {
         justify-content: center;
         pointer-events: auto;
     }
-    
+
     .mobile-carousel-container {
         display: flex;
         width: 100%;
@@ -253,7 +237,7 @@ body {
         will-change: transform;
         pointer-events: auto;
     }
-    
+
     .mobile-carousel-item {
         min-width: 100%;
         width: 100%;
@@ -266,7 +250,7 @@ body {
         pointer-events: auto;
         overflow: hidden;
     }
-    
+
     .mobile-carousel-item img {
         width: auto;
         height: calc(100vw + 21vh);
@@ -275,7 +259,7 @@ body {
         pointer-events: none;
         margin: 0;
     }
-    
+
     /* Rotazione di -90 gradi per immagini orizzontali su mobile */
     .mobile-carousel-item img.mobile-rotate-landscape {
         transform: rotate(-90deg);
@@ -289,7 +273,33 @@ body {
         object-fit: contain;
         margin: 0;
     }
-    
+
+    /* Pallini indicatori carosello mobile */
+    .mobile-carousel-dots {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10002;
+        padding: 10px;
+    }
+
+    .carousel-dot {
+        width: 6px;
+        height: 6px;
+        background-color: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transition: all 0.3s ease;
+    }
+
+    .carousel-dot.active {
+        background-color: white;
+        transform: scale(1.3);
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    }
+
 }
 
 .popup-container {
@@ -404,6 +414,7 @@ body {
     .popup-content:hover {
         cursor: move;
     }
+
     .popup-content:hover:active {
         cursor: move;
     }
@@ -418,4 +429,4 @@ body {
     background: transparent;
     display: none;
     z-index: 999;
-} 
+}
